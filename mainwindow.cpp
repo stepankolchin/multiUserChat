@@ -6,15 +6,22 @@ MainWindow::MainWindow(QWidget *parent) ://конструктор
     ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
+    member_list=new  QMap<QString,QString>;
+    list=new class member_list;
     this->setMinimumSize(1320,723);
     this->setWindowTitle("Чатик");
+    for (int i=0;i<99;i++){
+        massiv[i]=new member_list::member_container();
+    }
+
+
     curr_num_podkl=num_podkl;
 //    ui->lineEdit_Adress->setInputMask("000.000.000.000");
-    for (int i=0;i<curr_num_podkl ;i++ )
+    for (int i=0;i<99 ;i++ )
     {
         mas_bool[i]=false;
     }
-    for (int i=0;i<curr_num_podkl ;i++ )
+    for (int i=0;i<99 ;i++ )
     {
         mas[i]=nullptr;
     }
@@ -134,6 +141,7 @@ void MainWindow::on_pushButton_Create_clicked() //создали соедине�
 //        Mes_Box->open();
 //        return;
 //    }
+    curr_num_podkl=ui->lineEdit_Kol_Podkl->text().toInt();
     if (ui->lineEdit_Kol_Podkl->text().toInt()==0)
     {
         close_QMES();//закрываем мэсэдж бокс если открыт и открываем новый
@@ -158,6 +166,12 @@ void MainWindow::on_pushButton_Create_clicked() //создали соедине�
 //            QMessageBox::information(this,"Внимание","Сервер с указанным портом уже создан");
             return;
         }
+//        member_list->insert("Админ",QTime::currentTime().toString());
+        massiv[0]->add(0,"Админ",QTime::currentTime().toString());
+//        massiv[0]->number=0;
+//        massiv[0]->nick="Админ";
+//        massiv[0]->time=QTime::currentTime().toString();
+        massiv[1]->number=-1;//костыль!!!!!!!
         //если получилось - настройка интерфейса
         curr_num_podkl=ui->lineEdit_Kol_Podkl->text().toInt();
         ui->lineEdit_Kol_Podkl->setEnabled(false);
@@ -168,6 +182,7 @@ void MainWindow::on_pushButton_Create_clicked() //создали соедине�
         ui->radioButton_Server->setEnabled(false);
         ui->lineEdit_Port->setEnabled(false);
         ui->lineEdit_NickName->setEnabled(false);
+        ui->textEdit_input->setVisible(true);
         connect(TCPServer,SIGNAL(newConnection()),this,SLOT(new_connection()));//связываем сигнал нового подключения с соответсвующим слотом
         close_QMES();//закрываем мэсэдж бокс если открыт и открываем новый
         Mes_Box->setText("Чатик создан");
@@ -186,6 +201,7 @@ void MainWindow::on_pushButton_Create_clicked() //создали соедине�
 
 void MainWindow::new_connection()//к нам подключились
 {
+
 //    if (TCPSocket!=nullptr)
 //    {
 //        if (TCPSocket->state()==QAbstractSocket::ConnectedState)
@@ -224,29 +240,32 @@ void MainWindow::new_connection()//к нам подключились
 //        }
 //    }
     if (index==1){
-    mas[index-1]=TCPServer->nextPendingConnection();//связываемся с клиентом
-    connect(mas[index-1],SIGNAL(readyRead()),this,SLOT(read_data()));//связываем сигнал готов читать с соответсвующим слотом
-    connect(mas[index-1],SIGNAL(disconnected()),this,SLOT(client_disconnected()));//связываем сигнал отключения сокета с соответсвующим слотом
-    mas_bool[index-1]=true;
-    if (index==curr_num_podkl)
-        TCPServer->close();
-}
+        mas[index-1]=TCPServer->nextPendingConnection();//связываемся с клиентом
+        connect(mas[index-1],SIGNAL(readyRead()),this,SLOT(read_data()));//связываем сигнал готов читать с соответсвующим слотом
+        connect(mas[index-1],SIGNAL(disconnected()),this,SLOT(client_disconnected()));//связываем сигнал отключения сокета с соответсвующим слотом
+        mas_bool[index-1]=true;
+        QByteArray ba;
+        QString admin_data;
+        admin_data=massiv[0]->nick+ "\n" + massiv[0]->time + "\n";
+        ba=admin_data.toLocal8Bit();
+        mas[index-1]->write(ba);
+        if (index==curr_num_podkl)
+            TCPServer->close();
+    }
     else if (index>1 and index<=curr_num_podkl)
     {
         int socket_free=0;
         for (int i=0;i<10 ;i++ )
-        {
             if (!mas_bool[i])
             {
                 socket_free=i;
                 break;
             }
-
-        }
         mas[socket_free]=TCPServer->nextPendingConnection();
         connect(mas[socket_free],SIGNAL(readyRead()),this,SLOT(read_data()));//связываем сигнал готов читать с соответсвующим слотом
         connect(mas[socket_free],SIGNAL(disconnected()),this,SLOT(client_disconnected()));//связываем сигнал отключения сокета с соответсвующим слотом
         mas_bool[socket_free]=true;
+        list->makeTable(massiv);
         if (index==curr_num_podkl)
             TCPServer->close();
 //        TCPServer->close();
@@ -281,14 +300,19 @@ void MainWindow::new_connection()//к нам подключились
 
 void MainWindow::read_data()//пришли данные
 {
-    if (ui->radioButton_Client->isChecked())
+    if (ui->radioButton_Client->isChecked())//мы клиент
     {
-
         QByteArray ba;
         ba=TCPSocket->readAll();
         QString str;
         str=str.fromLocal8Bit(ba);//считываем все полученные сообщения)
         QStringList strlist=str.split("\n");
+        if (first_mes){
+            massiv[1]->add(1,massiv[0]->nick,massiv[0]->time);
+            massiv[0]->add(0,strlist[0],strlist[1]);
+            first_mes=false;
+            return;
+        }
         for (int i=0;i<strlist.size() ;i++ )
         {
             if (!strlist[i].isEmpty())
@@ -302,33 +326,47 @@ void MainWindow::read_data()//пришли данные
 //        connection_denied=false;
 
     }
-    else if (ui->radioButton_Server->isChecked())
+    else if (ui->radioButton_Server->isChecked())//мы сервер
     {
 
-
-        if (index>1)
+        if (index>1)//если больше одного юзера
         {
             QByteArray ba;
             int from_where_message=0;
-            for (int i=0;i<index ;i++ )
+            for (int i=0;i<index ;i++ )//ищем от кого пришло сообщение
             {
                 ba=mas[i]->readAll();
-                if (!(ba.isEmpty()))
+                if (!(ba.isEmpty()))//если мы прочитали по этому сокету и тут что-то есть, значит пришло отюда
                 {
-                    from_where_message=i;
-                    break;}
+                    from_where_message=i;//из какого по счету сокета пришло сообщение
+                    break;
+                }
             }
             QString str;
             str=str.fromLocal8Bit(ba);//считываем все полученные сообщения
-            for (int i=0;i<index ;i++ )
+            QStringList strlist=str.split("\n");
+            if (first_mes){//если пришло служебное сообщение для списка участников
+                massiv[index]->add(index,strlist[0],strlist[1]);
+                massiv[index+1]->number=-1;//костыль!!!!!!
+//                member_list->insert(member_list->constEnd(),strlist[0],strlist[1]);//добавляем данные этого пользователя в контейнер
+                first_mes=false;//говорим что от этого юзера служебную инфу мы уже получили - все что будет приходить после это его сообщения
+                //тут надо сделать массив с флагами для каждого юзера!!!!!!!!!!!!!!!!!
+                return;
+            }
+            for (int i=0;i<index ;i++ )//пересылаем полученное сообщение всем другим участникам
             {
-                if (i==from_where_message)
+                if (i==from_where_message)//кроме юзера который отправил сообщение
                     continue;
                 mas[i]->write(ba);
 
             }
-            QStringList strlist=str.split("\n");
+
 //            qDebug()<<strlist;
+//            int iterator=0;
+//            while(!strlist[iterator].isEmpty()){//обрабатываем сообщение чтобы выводился ник и само сообщение
+//                iterator++;
+//                ui->textEdit_input->append(strlist[iterator]);//выводим сообщение в текстэдит
+//            }
             for (int i=0;i<strlist.size() ;i++ )
             {
                 if (!strlist[i].isEmpty())
@@ -336,14 +374,26 @@ void MainWindow::read_data()//пришли данные
             }
             strlist.clear();
         }
-        else
+        else//если у нас всего один юзер (нет смысла делать пересылку другим)
         {
             QByteArray ba;
             ba=mas[0]->readAll();
             QString str;
             str=str.fromLocal8Bit(ba);//считываем все полученные сообщения
             QStringList strlist=str.split("\n");
-            qDebug()<<strlist;
+            if (first_mes){//если пришло служебное сообщение для списка участников
+                massiv[index]->add(index,strlist[0],strlist[1]);
+                massiv[index+1]->number=-1;//костыль!!!!!!!!
+//                member_list->insert(member_list->constEnd(),strlist[0],strlist[1]);//добавляем данные этого пользователя в контейнер
+                first_mes=false;//говорим что от этого юзера служебную инфу мы уже получили - все что будет приходить после это его сообщения
+                return;
+            }
+//            qDebug()<<strlist;
+//            int iterator=0;
+//            while(!strlist[iterator].isEmpty()){//обрабатываем сообщение чтобы выводился ник и само сообщение
+//                iterator++;
+//                ui->textEdit_input->append(strlist[iterator]);//выводим сообщение в текстэдит
+//            }
             for (int i=0;i<strlist.size() ;i++ )
             {
                 if (!strlist[i].isEmpty())
@@ -402,9 +452,19 @@ void MainWindow::on_pushButton_Connect_clicked() //подключаемся
         {
             //если  смогли подключиться в течение 2 сек - настройка интерфейса
             QString nickname=ui->lineEdit_NickName->text() + " подключился."+"\n";
+            QTime time_of_connection=QTime::currentTime();
             QByteArray podkl_completed;
+            QByteArray connection_time=(time_of_connection.toString()+ " \n").toLocal8Bit();
+
             podkl_completed=nickname.toLocal8Bit();
+
+//            member_list->insert(ui->lineEdit_NickName->text(),time_of_connection.toString());
+            QByteArray whoami;
+            massiv[0]->add(0,ui->lineEdit_NickName->text(),QTime::currentTime().toString());
+            whoami=massiv[0]->toString().toLocal8Bit();
+            TCPSocket->write(whoami);
             TCPSocket->write(podkl_completed);
+//            TCPSocket->write(connection_time);
             ui->pushButton_Disconnect->setEnabled(true);
             ui->pushButton_Disconnect->show();
             ui->pushButton_Connect->setDisabled(true);
@@ -493,6 +553,7 @@ void MainWindow::on_pushButton_SendMes_clicked() //отправить сообщ
 
 void MainWindow::on_pushButton_Disconnect_clicked()//кнопка отключения
 {
+    first_mes=true;
     fl_otkl_sam=true;//флаг собственного отключения
     if (ui->radioButton_Client->isChecked())//если мы в режиме клиента отключаемся
     {
@@ -828,3 +889,12 @@ void MainWindow::on_textEdit_input_textChanged()
     ui->pushButton_Clear->show();
 }
 
+
+void MainWindow::on_pushButton_Member_List_clicked()
+{
+    list->makeTable(massiv);
+    list->open();
+
+}
+//нужно сделать то что с воскл знаками для того чтобы заработало нормально отображение 3его пользователя
+//также нужно сделать пересылку всего списка для каждого нового юзера

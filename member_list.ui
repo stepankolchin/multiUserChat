@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>member_list</class>
+ <widget class="QWidget" name="member_list">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>633</width>
+    <height>530</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Form</string>
+  </property>
+  <widget class="QTableWidget" name="tableWidget">
+   <property name="geometry">
+    <rect>
+     <x>30</x>
+     <y>30</y>
+     <width>471</width>
+     <height>261</height>
+    </rect>
+   </property>
+   <attribute name="horizontalHeaderVisible">
+    <bool>true</bool>
+   </attribute>
+   <attribute name="verticalHeaderVisible">
+    <bool>true</bool>
+   </attribute>
+   <column>
+    <property name="text">
+     <string>NickName</string>
+    </property>
+   </column>
+   <column>
+    <property name="text">
+     <string>Время подключения</string>
+    </property>
+   </column>
+   <column>
+    <property name="text">
+     <string>Действия</string>
+    </property>
+   </column>
+  </widget>
+  <widget class="QPushButton" name="pushButton_Close">
+   <property name="geometry">
+    <rect>
+     <x>440</x>
+     <y>430</y>
+     <width>121</width>
+     <height>41</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Закрыть</string>
+   </property>
+  </widget>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

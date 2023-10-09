@@ -12,6 +12,8 @@
 #include <QRegularExpression>
 #include <QRegularExpressionValidator>
 #include <QCloseEvent>
+#include <QTime>
+#include <member_list.h>
 #define num_podkl 10
 
 namespace Ui {
@@ -25,6 +27,15 @@ class MainWindow : public QMainWindow
 public:
     explicit MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
+    QMap<QString,QString> *member_list;
+    class member_list *list;
+
+//    struct member_container{
+//        int number=0;
+//        QString nick="";
+//        QString time="";
+//    };
+    member_list::member_container *massiv[99];
 
 private slots:
     void on_radioButton_Client_clicked();//переключили в режим клиента
@@ -60,20 +71,26 @@ private slots:
 
     void on_textEdit_input_textChanged();
 
+    void on_pushButton_Member_List_clicked();
+
 private:
     Ui::MainWindow *ui;
+
+    bool first_mes=true;
 
     QTcpServer *TCPServer=nullptr;//сервер
     QTcpSocket *TCPSocket=nullptr;//сокет
     QMessageBox *Mes_Box;//создали мэседж бокс
+
+
 //    Dialog_filter *dial;//окно где говорим что будем фильтровать
     int counter=0,index=0;//счетчик таймера
     int curr_num_podkl;
     bool fl_otkl_sam=false,connection_denied=false;//флаг для определения кто разорвал соединение(мы или вторая сторона)
     bool spam_on=true;//флаг спама
     QTimer *timer;//таймер
-    QTcpSocket *mas[num_podkl];//массив тцп сокетов для подключений
-    bool mas_bool[num_podkl];//массив информирующий нас о том какие сокеты заняты
+    QTcpSocket *mas[99];//массив тцп сокетов для подключений
+    bool mas_bool[99];//массив информирующий нас о том какие сокеты заняты
 
 protected:
     void closeEvent(QCloseEvent * event);//перехватываем событие закрытия программы

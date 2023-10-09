@@ -277,6 +277,19 @@
      <string>Вместительность сервера</string>
     </property>
    </widget>
+   <widget class="QPushButton" name="pushButton_Member_List">
+    <property name="geometry">
+     <rect>
+      <x>1030</x>
+      <y>30</y>
+      <width>241</width>
+      <height>61</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Список участников</string>
+    </property>
+   </widget>
   </widget>
   <widget class="QMenuBar" name="menuBar">
    <property name="geometry">
@@ -284,7 +297,7 @@
      <x>0</x>
      <y>0</y>
      <width>1320</width>
-     <height>38</height>
+     <height>37</height>
     </rect>
    </property>
   </widget>
