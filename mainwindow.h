@@ -75,24 +75,32 @@ private slots:
 
     void on_pushButton_help_debug_clicked();
 
+    void new_connection_service();
+
+    void read_data_service();
+
 private:
     Ui::MainWindow *ui;
 
     bool first_mes=true;
 
-    QTcpServer *TCPServer=nullptr;//сервер
-    QTcpSocket *TCPSocket=nullptr;//сокет
+    QTcpServer *TCPServer=nullptr;//сервер основной
+    QTcpServer *TCPServer_service=nullptr;//сервер служебный
+    QTcpSocket *TCPSocket=nullptr;//сокет основной
+    QTcpSocket *TCPSocket_service=nullptr;//сокет служебный
     QMessageBox *Mes_Box;//создали мэседж бокс
 
 
 //    Dialog_filter *dial;//окно где говорим что будем фильтровать
-    int counter=0,index=0;//счетчик таймера
+    int counter=0,index=0,index_service=0;//счетчик таймера
     int curr_num_podkl;
     bool fl_otkl_sam=false,connection_denied=false;//флаг для определения кто разорвал соединение(мы или вторая сторона)
     bool spam_on=true;//флаг спама
     QTimer *timer;//таймер
     QTcpSocket *mas[99];//массив тцп сокетов для подключений серверу
+    QTcpSocket *mas_service[99];//массив служебных сокетов для подключений серверу
     bool mas_bool[99];//массив информирующий нас о том какие сокеты заняты
+    bool mas_bool_service[99];//массив информирующий нас о том какие сокеты заняты
     bool mas_first_mes[99];//массив сообщающий о том первое это сообщение от пользователя(служебное) или нет
 protected:
     void closeEvent(QCloseEvent * event);//перехватываем событие закрытия программы

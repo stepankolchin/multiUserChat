@@ -25,6 +25,7 @@ MainWindow::MainWindow(QWidget *parent) ://конструктор
     for (int i=0;i<99 ;i++ )
     {
         mas[i]=nullptr;
+        mas_service[i]=nullptr;
     }
 //    for (int i=0;i<10 ;i++ )
 //    {
@@ -86,7 +87,9 @@ MainWindow::MainWindow(QWidget *parent) ://конструктор
 MainWindow::~MainWindow()//деструктор
 {
     delete TCPSocket;
+    delete TCPSocket_service;
     delete TCPServer;
+    delete TCPSocket_service;
     delete timer;
     delete Mes_Box;
 
@@ -155,7 +158,7 @@ void MainWindow::on_pushButton_Create_clicked() //создали соедине�
 
     int port;
     port=ui->lineEdit_Port->text().toInt();//считываем значение порта
-    if (port>0 and port<=65535 /*and TCPServer==nullptr*/)//проверка порта
+    if (port>0 and port<65535 /*and TCPServer==nullptr*/)//проверка порта
     {
         TCPServer=new QTcpServer(this);//создаем экземпляр класса сервера
         if (!(TCPServer->listen(QHostAddress::Any,quint16(port))))//пробуем начать принимать сообщения
@@ -165,14 +168,19 @@ void MainWindow::on_pushButton_Create_clicked() //создали соедине�
             Mes_Box->setText("Сервер с указанным портом уже создан");
             Mes_Box->setWindowTitle("Внимание");
             Mes_Box->open();
-//            QMessageBox::information(this,"Внимание","Сервер с указанным портом уже создан");
             return;
         }
-//        member_list->insert("Админ",QTime::currentTime().toString());
+        TCPServer_service=new QTcpServer(this);
+        if (!(TCPServer_service->listen(QHostAddress::Any,quint16(port+1))))//пробуем начать принимать сообщения по служебному порту
+        {
+            //если не получилось - порт уже занят
+            close_QMES();//закрываем мэсэдж бокс если открыт и открываем новый
+            Mes_Box->setText("Существует сервер, занимающий "+QString::number(port+1)+ "порт");
+            Mes_Box->setWindowTitle("Внимание");
+            Mes_Box->open();
+            return;
+        }
         massiv[0]->add(0,"Админ",QTime::currentTime().toString());
-//        massiv[0]->number=0;
-//        massiv[0]->nick="Админ";
-//        massiv[0]->time=QTime::currentTime().toString();
         massiv[1]->number=-1;//костыль!!!!!!!
         //если получилось - настройка интерфейса
         curr_num_podkl=ui->lineEdit_Kol_Podkl->text().toInt();
@@ -187,6 +195,7 @@ void MainWindow::on_pushButton_Create_clicked() //создали соедине�
         ui->textEdit_input->setVisible(true);
         ui->pushButton_Member_List->show();
         connect(TCPServer,SIGNAL(newConnection()),this,SLOT(new_connection()));//связываем сигнал нового подключения с соответсвующим слотом
+        connect(TCPServer_service,SIGNAL(newConnection()),this,SLOT(new_connection_service()));//связываем сигнал нового подключения с соответсвующим слотом
         close_QMES();//закрываем мэсэдж бокс если открыт и открываем новый
         Mes_Box->setText("Чатик создан");
         Mes_Box->setWindowTitle("Ура");
@@ -201,7 +210,87 @@ void MainWindow::on_pushButton_Create_clicked() //создали соедине�
 //        QMessageBox::information(this,"Внимание","Неправильно указан порт");
     }
 }
-
+void MainWindow::new_connection_service()//подключение к служебному порту
+{
+    index_service++;
+//    int new_connection_numb=0;
+//    for (int i=0;i<index ;i++ )
+//    {
+////        qDebug()<<mas[i]->state();
+//        if (mas[i]->is)
+//            if (mas[i]->state()==QAbstractSocket::ConnectedState)
+//                continue;
+//            else
+//            {
+//                new_connection_numb=i;
+//                break;
+//            }
+//        else
+//        {
+//            new_connection_numb=i;
+//            break;
+//        }
+//    }
+    if (index_service==1){
+        mas_service[index_service-1]=TCPServer_service->nextPendingConnection();//связываемся с клиентом
+        connect(mas_service[index_service-1],SIGNAL(readyRead()),this,SLOT(read_data_service()));//связываем сигнал готов читать с соответсвующим слотом
+        connect(mas_service[index_service-1],SIGNAL(disconnected()),this,SLOT(client_disconnected()));//связываем сигнал отключения сокета с соответсвующим слотом
+        mas_bool_service[index_service-1]=true;
+        QByteArray ba;
+        QString admin_data;
+        for (int i=0;i<99;i++)
+            if (massiv[i]->number!=-1)
+                admin_data.append(massiv[i]->toString());
+            else break;
+        ba=admin_data.toLocal8Bit();
+        mas_service[index_service-1]->write(ba);
+//        for (int i=0;i<99;i++)
+//            if (massiv[i]->number!=-1)
+//                admin_data.append(massiv[0]->nick+ "\n" + massiv[0]->time + "\n");
+//        ba=admin_data.toLocal8Bit();
+//        mas[index-1]->write(ba);
+        if (index_service==curr_num_podkl)
+            TCPServer_service->close();
+    }
+    else if (index_service>1 and index_service<=curr_num_podkl)
+    {
+        int socket_free=0;
+        for (int i=0;i<99 ;i++ )
+            if (!mas_bool_service[i])
+            {
+                socket_free=i;
+                break;
+            }
+        mas_service[socket_free]=TCPServer_service->nextPendingConnection();
+        connect(mas_service[socket_free],SIGNAL(readyRead()),this,SLOT(read_data_service()));//связываем сигнал готов читать с соответсвующим слотом
+        connect(mas_service[socket_free],SIGNAL(disconnected()),this,SLOT(client_disconnected()));//связываем сигнал отключения сокета с соответсвующим слотом
+        mas_bool_service[socket_free]=true;
+        QByteArray ba;
+        QString admin_data;
+        for (int i=0;i<99;i++)
+            if (massiv[i]->number!=-1)
+                admin_data.append(massiv[i]->toString());
+            else break;
+        ba=admin_data.toLocal8Bit();
+        mas_service[index_service-1]->write(ba);
+        list->makeTable(massiv);
+        if (index_service==curr_num_podkl)
+            TCPServer_service->close();
+//        TCPServer->close();
+    }
+    else if(index_service>curr_num_podkl)
+    {
+//        QTcpSocket *tmp=new QTcpSocket(this);
+//        tmp=TCPServer->nextPendingConnection();
+//        QByteArray ba;
+//        QString str ="Сервер полностью заполнен";
+//        ba=(str + "\n").toLocal8Bit();
+//        tmp->write(ba);
+//        tmp->disconnectFromHost();
+        index_service--;
+//        delete tmp;
+    }
+}
 void MainWindow::new_connection()//к нам подключились
 {
 
@@ -247,11 +336,11 @@ void MainWindow::new_connection()//к нам подключились
         connect(mas[index-1],SIGNAL(readyRead()),this,SLOT(read_data()));//связываем сигнал готов читать с соответсвующим слотом
         connect(mas[index-1],SIGNAL(disconnected()),this,SLOT(client_disconnected()));//связываем сигнал отключения сокета с соответсвующим слотом
         mas_bool[index-1]=true;
-        QByteArray ba;
-        QString admin_data;
-        admin_data=massiv[0]->nick+ "\n" + massiv[0]->time + "\n";
-        ba=admin_data.toLocal8Bit();
-        mas[index-1]->write(ba);
+//        QByteArray ba;
+//        QString admin_data;
+//        admin_data=massiv[0]->nick+ "\n" + massiv[0]->time + "\n";
+//        ba=admin_data.toLocal8Bit();
+//        mas[index-1]->write(ba);
 //        for (int i=0;i<99;i++)
 //            if (massiv[i]->number!=-1)
 //                admin_data.append(massiv[0]->nick+ "\n" + massiv[0]->time + "\n");
@@ -273,14 +362,14 @@ void MainWindow::new_connection()//к нам подключились
         connect(mas[socket_free],SIGNAL(readyRead()),this,SLOT(read_data()));//связываем сигнал готов читать с соответсвующим слотом
         connect(mas[socket_free],SIGNAL(disconnected()),this,SLOT(client_disconnected()));//связываем сигнал отключения сокета с соответсвующим слотом
         mas_bool[socket_free]=true;
-        QByteArray ba;
-        QString admin_data;
-        for (int i=0;i<99;i++)
-            if (massiv[i]->number!=-1)
-                admin_data.append(massiv[i]->nick+ "\n" + massiv[i]->time + "\n");
-        ba=admin_data.toLocal8Bit();
-        mas[index-1]->write(ba);
-        list->makeTable(massiv);
+//        QByteArray ba;
+//        QString admin_data;
+//        for (int i=0;i<99;i++)
+//            if (massiv[i]->number!=-1)
+//                admin_data.append(massiv[i]->nick+ "\n" + massiv[i]->time + "\n");
+//        ba=admin_data.toLocal8Bit();
+//        mas[index-1]->write(ba);
+//        list->makeTable(massiv);
         if (index==curr_num_podkl)
             TCPServer->close();
 //        TCPServer->close();
@@ -313,6 +402,91 @@ void MainWindow::new_connection()//к нам подключились
 //    QMessageBox::information(this,"Опа","К вам кто-то подключился");//выводим сообщение о том что ктото подключился
 }
 
+void MainWindow::read_data_service()
+{
+    if (ui->radioButton_Client->isChecked())//мы клиент
+    {
+        QByteArray ba;
+        ba=TCPSocket_service->readAll();
+        QString str;
+        str=str.fromLocal8Bit(ba);//считываем все полученные сообщения)
+        QStringList strlist=str.split("\n");
+        for (int i=0;i<strlist.size()/2;i++){
+            massiv[i]->add(i,strlist[2*i],strlist[2*i +1]);
+        }
+//        if (first_mes){
+//            massiv[1]->add(1,massiv[0]->nick,massiv[0]->time);
+//            massiv[0]->add(0,strlist[0],strlist[1]);
+//            first_mes=false;
+//            return;
+//        }
+//        for (int i=0;i<strlist.size() ;i++ )
+//        {
+//            if (!strlist[i].isEmpty())
+//              ui->textEdit_input->append(strlist[i]);//выводим сообщение в текстэдит
+//        }
+        strlist.clear();
+//        ui->pushButton_Clear->show();
+//    if (str=="1")
+//        connection_denied=true;
+//    else
+//        connection_denied=false;
+
+    }
+    else if (ui->radioButton_Server->isChecked())//мы сервер
+    {
+        if (index>1)//если больше одного юзера
+        {
+            QByteArray ba;
+            int from_where_message=0;
+            for (int i=0;i<index ;i++ )//ищем от кого пришло сообщение
+            {
+                ba=mas_service[i]->readAll();
+                if (!(ba.isEmpty()))//если мы прочитали по этому сокету и тут что-то есть, значит пришло отюда
+                {
+                    from_where_message=i;//из какого по счету сокета пришло сообщение
+                    break;
+                }
+            }
+            QString str;
+            str=str.fromLocal8Bit(ba);//считываем все полученные сообщения
+            QStringList strlist=str.split("\n");
+            massiv[index]->add(index,strlist[0],strlist[1]);
+            massiv[index+1]->number=-1;//костыль!!!!!!
+            for (int i=0;i<99;i++)
+                if (mas_service[i]!=nullptr and i!=from_where_message){
+                    mas_service[i]->write(ba);
+                }
+            strlist.clear();
+        }
+        else//если у нас всего один юзер (нет смысла делать пересылку другим)
+        {
+            QByteArray ba;
+            ba=mas_service[0]->readAll();
+            QString str;
+            str=str.fromLocal8Bit(ba);//считываем все полученные сообщения
+            QStringList strlist=str.split("\n");
+//            if (first_mes){//если пришло служебное сообщение для списка участников
+            massiv[index]->add(index,strlist[0],strlist[1]);
+            massiv[index+1]->number=-1;//костыль!!!!!!!!
+//                member_list->insert(member_list->constEnd(),strlist[0],strlist[1]);//добавляем данные этого пользователя в контейнер
+//                first_mes=false;//говорим что от этого юзера служебную инфу мы уже получили - все что будет приходить после это его сообщения
+//                return;
+//            }
+//            for (int i=0;i<strlist.size() ;i++ )
+//            {
+//                if (!strlist[i].isEmpty())
+//                  ui->textEdit_input->append(strlist[i]);//выводим сообщение в текстэдит
+//            }
+            strlist.clear();
+//            ui->textEdit_input->append(strlist);//выводим сообщение в текстэдит
+        }
+//        ui->pushButton_Clear->show();
+    }
+
+}
+
+
 void MainWindow::read_data()//пришли данные
 {
     if (ui->radioButton_Client->isChecked())//мы клиент
@@ -322,12 +496,12 @@ void MainWindow::read_data()//пришли данные
         QString str;
         str=str.fromLocal8Bit(ba);//считываем все полученные сообщения)
         QStringList strlist=str.split("\n");
-        if (first_mes){
-            massiv[1]->add(1,massiv[0]->nick,massiv[0]->time);
-            massiv[0]->add(0,strlist[0],strlist[1]);
-            first_mes=false;
-            return;
-        }
+//        if (first_mes){
+//            massiv[1]->add(1,massiv[0]->nick,massiv[0]->time);
+//            massiv[0]->add(0,strlist[0],strlist[1]);
+//            first_mes=false;
+//            return;
+//        }
         for (int i=0;i<strlist.size() ;i++ )
         {
             if (!strlist[i].isEmpty())
@@ -359,30 +533,29 @@ void MainWindow::read_data()//пришли данные
             QString str;
             str=str.fromLocal8Bit(ba);//считываем все полученные сообщения
             QStringList strlist=str.split("\n");
-            if (mas_first_mes[from_where_message]){//если пришло служебное сообщение для списка участников
-                massiv[index]->add(index,strlist[0],strlist[1]);
-                massiv[index+1]->number=-1;//костыль!!!!!!
-                QByteArray ba;
-                QString str;
-                str.append(massiv[index]->toString());
-                ba=str.toLocal8Bit();
-                for (int i=0;i<99;i++){
-                    if (mas[i]!=nullptr){
-                        mas[i]->write(ba);
-                    }
-                }
+//            if (mas_first_mes[from_where_message]){//если пришло служебное сообщение для списка участников
+//                massiv[index]->add(index,strlist[0],strlist[1]);
+//                massiv[index+1]->number=-1;//костыль!!!!!!
+//                QByteArray ba;
+//                QString str;
+//                str.append(massiv[index]->toString());
+//                ba=str.toLocal8Bit();
+//                for (int i=0;i<99;i++){
+//                    if (mas[i]!=nullptr){
+//                        mas[i]->write(ba);
+//                    }
+//                }
 
 //                member_list->insert(member_list->constEnd(),strlist[0],strlist[1]);//добавляем данные этого пользователя в контейнер
-                mas_first_mes[from_where_message]=false;//говорим что от этого юзера служебную инфу мы уже получили - все что будет приходить после это его сообщения
-                //тут надо сделать массив с флагами для каждого юзера!!!!!!!!!!!!!!!!!
-                //upd вроде done
-                return;
-            }
+//                mas_first_mes[from_where_message]=false;//говорим что от этого юзера служебную инфу мы уже получили - все что будет приходить после это его сообщения
+//                //тут надо сделать массив с флагами для каждого юзера!!!!!!!!!!!!!!!!!
+//                //upd вроде done
+//                return;
+//            }
             for (int i=0;i<index ;i++ )//пересылаем полученное сообщение всем другим участникам
             {
-                if (i==from_where_message)//кроме юзера который отправил сообщение
-                    continue;
-                mas[i]->write(ba);
+                if (i!=from_where_message)//кроме юзера который отправил сообщение
+                    mas[i]->write(ba);
 
             }
 
@@ -406,13 +579,13 @@ void MainWindow::read_data()//пришли данные
             QString str;
             str=str.fromLocal8Bit(ba);//считываем все полученные сообщения
             QStringList strlist=str.split("\n");
-            if (first_mes){//если пришло служебное сообщение для списка участников
-                massiv[index]->add(index,strlist[0],strlist[1]);
-                massiv[index+1]->number=-1;//костыль!!!!!!!!
-//                member_list->insert(member_list->constEnd(),strlist[0],strlist[1]);//добавляем данные этого пользователя в контейнер
-                first_mes=false;//говорим что от этого юзера служебную инфу мы уже получили - все что будет приходить после это его сообщения
-                return;
-            }
+//            if (first_mes){//если пришло служебное сообщение для списка участников
+//                massiv[index]->add(index,strlist[0],strlist[1]);
+//                massiv[index+1]->number=-1;//костыль!!!!!!!!
+////                member_list->insert(member_list->constEnd(),strlist[0],strlist[1]);//добавляем данные этого пользователя в контейнер
+//                first_mes=false;//говорим что от этого юзера служебную инфу мы уже получили - все что будет приходить после это его сообщения
+//                return;
+//            }
 //            qDebug()<<strlist;
 //            int iterator=0;
 //            while(!strlist[iterator].isEmpty()){//обрабатываем сообщение чтобы выводился ник и само сообщение
@@ -470,25 +643,34 @@ void MainWindow::on_pushButton_Connect_clicked() //подключаемся
     {
         //если порт и адрес правильные
         TCPSocket = new QTcpSocket(this);//создаем сокет
-        connect(TCPSocket,SIGNAL(readyRead()),this,SLOT(read_data()));//связываем сигнал готов к чтению с соответсвующим слотом
-        connect(TCPSocket,SIGNAL(disconnected()),this,SLOT(client_disconnected()));//связываем сигнал отключения с соответсвующим слотом
+
+        connect(TCPSocket,SIGNAL(readyRead()),this,SLOT(read_data()));//связываем сигнал готов к чтению с соответствующим слотом
+        connect(TCPSocket,SIGNAL(disconnected()),this,SLOT(client_disconnected()));//связываем сигнал отключения с соответствующим слотом
         TCPSocket->connectToHost(*adres,quint16(port));//пробуем подключиться к указанному адресу и порту
         if (TCPSocket->waitForConnected(2000))
         {
+            TCPSocket_service=new QTcpSocket(this);//создали служебный сокет
+            TCPSocket_service->connectToHost(*adres,quint16(port+1));//пробуем подключиться к указанному адресу и порту
+            connect(TCPSocket_service,SIGNAL(readyRead()),this,SLOT(read_data_service()));//связываем сигнал готов к чтению с соответствующим слотом
+            connect(TCPSocket_service,SIGNAL(disconnected()),this,SLOT(client_disconnected()));//связываем сигнал отключения с соответствующим слотом
             //если  смогли подключиться в течение 2 сек - настройка интерфейса
             QString nickname=ui->lineEdit_NickName->text() + " подключился."+"\n";
+            QByteArray hello=nickname.toLocal8Bit();
+
 //            QTime time_of_connection=QTime::currentTime();
-            QByteArray podkl_completed;
+//            QByteArray podkl_completed;
 //            QByteArray connection_time=(time_of_connection.toString()+ " \n").toLocal8Bit();
 
-            podkl_completed=nickname.toLocal8Bit();
+//            podkl_completed=nickname.toLocal8Bit();
 
 //            member_list->insert(ui->lineEdit_NickName->text(),time_of_connection.toString());
             QByteArray whoami;
             massiv[0]->add(0,ui->lineEdit_NickName->text(),QTime::currentTime().toString());
             whoami=massiv[0]->toString().toLocal8Bit();
-            TCPSocket->write(whoami);
-            TCPSocket->write(podkl_completed);
+
+            TCPSocket->write(hello);
+            TCPSocket_service->write(whoami);
+//            TCPSocket->write(podkl_completed);
 //            TCPSocket->write(connection_time);
             ui->pushButton_Disconnect->setEnabled(true);
             ui->pushButton_Disconnect->show();
@@ -614,6 +796,7 @@ void MainWindow::on_pushButton_Disconnect_clicked()//кнопка отключе
 
 
         TCPSocket->disconnectFromHost();//отключаемся от сервера
+        TCPSocket_service->disconnectFromHost();
 //        TCPSocket->~QTcpSocket();
 
         close_QMES();//закрываем мэсэдж бокс если открыт и открываем новый
@@ -933,4 +1116,8 @@ void MainWindow::on_pushButton_help_debug_clicked()//кнопка для упр�
     ui->lineEdit_Adress->setText("127.0.0.1");
     ui->lineEdit_NickName->setText("1");
 }
+
+//проблема со служебным сокетом почему то вообще не принимает сообщения
+//проблема частично решена
+//TODO: настроить *_service для клиентов, для админа работает
 
