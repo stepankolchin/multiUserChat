@@ -184,14 +184,14 @@ void MainWindow::new_connection_service()//подключение к служе�
         connect(mas_service[index_service-1],SIGNAL(readyRead()),this,SLOT(read_data_service()));//связываем сигнал готов читать с соответсвующим слотом
         connect(mas_service[index_service-1],SIGNAL(disconnected()),this,SLOT(client_disconnected()));//связываем сигнал отключения сокета с соответсвующим слотом
         mas_bool_service[index_service-1]=true;
-        QByteArray ba;
-        QString admin_data;
-        for (int i=0;i<99;i++)
-            if (massiv[i]->number!=-1)
-                admin_data.append(massiv[i]->toString());
-            else break;
-        ba=admin_data.toLocal8Bit();
-        mas_service[index_service-1]->write(ba);
+//        QByteArray ba;
+//        QString admin_data;
+//        for (int i=0;i<99;i++)
+//            if (massiv[i]->number!=-1)
+//                admin_data.append(massiv[i]->toString());
+//            else break;
+//        ba=admin_data.toLocal8Bit();
+//        mas_service[index_service-1]->write(ba);
         if (index_service==curr_num_podkl)
             TCPServer_service->close();
     }
@@ -208,14 +208,14 @@ void MainWindow::new_connection_service()//подключение к служе�
         connect(mas_service[socket_free],SIGNAL(readyRead()),this,SLOT(read_data_service()));//связываем сигнал готов читать с соответсвующим слотом
         connect(mas_service[socket_free],SIGNAL(disconnected()),this,SLOT(client_disconnected()));//связываем сигнал отключения сокета с соответсвующим слотом
         mas_bool_service[socket_free]=true;
-        QByteArray ba;
-        QString admin_data;
-        for (int i=0;i<99;i++)
-            if (massiv[i]->number!=-1)
-                admin_data.append(massiv[i]->toString());
-            else break;
-        ba=admin_data.toLocal8Bit();
-        mas_service[index_service-1]->write(ba);
+//        QByteArray ba;
+//        QString admin_data;
+//        for (int i=0;i<99;i++)
+//            if (massiv[i]->number!=-1)
+//                admin_data.append(massiv[i]->toString());
+//            else break;
+//        ba=admin_data.toLocal8Bit();
+//        mas_service[index_service-1]->write(ba);
         list->makeTable(massiv);
         if (index_service==curr_num_podkl)
             TCPServer_service->close();
@@ -238,7 +238,7 @@ void MainWindow::new_connection()//к нам подключились
     else if (index>1 and index<=curr_num_podkl)
     {
         int socket_free=0;
-        for (int i=0;i<10 ;i++)
+        for (int i=0;i<99 ;i++)
             if (!mas_bool[i])
             {
                 socket_free=i;
@@ -279,7 +279,7 @@ void MainWindow::read_data_service()
         QByteArray ba;
         ba=TCPSocket_service->readAll();
         QString str;
-        str=str.fromLocal8Bit(ba);//считываем все полученные сообщения)
+        str=str.fromLocal8Bit(ba);//считываем все полученные сообщения
         QStringList strlist=str.split("\n");
         for (int i=0;i<strlist.size()/2;i++)
             massiv[i]->add(i,strlist[2*i],strlist[2*i +1]);
@@ -287,11 +287,11 @@ void MainWindow::read_data_service()
     }
     else if (ui->radioButton_Server->isChecked())//мы сервер
     {
-        if (index>1)//если больше одного юзера
+        if (index_service>1)//если больше одного юзера
         {
             QByteArray ba;
             int from_where_message=0;
-            for (int i=0;i<index ;i++ )//ищем от кого пришло сообщение
+            for (int i=0;i<index_service ;i++ )//ищем от кого пришло сообщение
             {
                 ba=mas_service[i]->readAll();
                 if (!(ba.isEmpty()))//если мы прочитали по этому сокету и тут что-то есть, значит пришло отюда
@@ -303,13 +303,52 @@ void MainWindow::read_data_service()
             QString str;
             str=str.fromLocal8Bit(ba);//считываем все полученные сообщения
             QStringList strlist=str.split("\n");
-            massiv[index]->add(index,strlist[0],strlist[1]);
-            massiv[index+1]->number=-1;//костыль!!!!!!
-            for (int i=0;i<99;i++)
-                if (mas_service[i]!=nullptr and i!=from_where_message){
-                    mas_service[i]->write(ba);
+            if (strlist[1]=="end"){//если это сообщение перед отключением
+                int num_discon=0;
+                for(int i=0;i<99;i++)//найдем кто именно отключается
+                    if (massiv[i]->nick==strlist[0]){
+                        num_discon=i;
+                        break;
+                    }
+                for (int i=num_discon;massiv[i]->number!=-1;i++){//начнем сдвигать всех налево пока не дойдем до -1
+                    if (massiv[i+1]->number==-1){
+                        massiv[i]->add(-1,"","");
+                        break;
+                    }
+                    //свапаем
+                    member_list::member_container tmp;
+                    tmp.add(massiv[i]->number,massiv[i]->nick,massiv[i]->time);
+                    massiv[i]->add(massiv[i+1]->number,massiv[i+1]->nick,massiv[i+1]->time);
+                    massiv[i+1]->add(tmp.number,tmp.nick,tmp.time);
                 }
+                str.clear();
+
+                for (int i=0;i<99;i++)
+                    if (massiv[i]->number!=-1)
+                        str.append(massiv[i]->toString());
+                QByteArray ba_serv;
+                ba_serv=str.toLocal8Bit();
+                for (int i=0;i<99;i++)
+                    if (mas_service[i]!=nullptr /*and i!=from_where_message*/)
+                        mas_service[i]->write(ba_serv);
+                strlist.clear();
+                return;
+
+            }
+            massiv[index_service]->add(index_service,strlist[0],strlist[1]);
+            massiv[index_service+1]->number=-1;//костыль!!!!!!
+            str.clear();
+
+            for (int i=0;i<99;i++)
+                if (massiv[i]->number!=-1)
+                    str.append(massiv[i]->toString());
+            ba.clear();
+            ba=str.toLocal8Bit();
+            for (int i=0;i<99;i++)
+                if (mas_service[i]!=nullptr /*and i!=from_where_message*/)
+                    mas_service[i]->write(ba);
             strlist.clear();
+            ba.clear();
         }
         else//если у нас всего один юзер (нет смысла делать пересылку другим)
         {
@@ -318,8 +357,19 @@ void MainWindow::read_data_service()
             QString str;
             str=str.fromLocal8Bit(ba);//считываем все полученные сообщения
             QStringList strlist=str.split("\n");
-            massiv[index]->add(index,strlist[0],strlist[1]);
-            massiv[index+1]->number=-1;//костыль!!!!!!!!
+            if (strlist[1]=="end"){//если это сообщение перед отключением
+                massiv[index_service]->add(-1,"","");
+                return;
+            }
+            massiv[index_service]->add(index_service,strlist[0],strlist[1]);
+            massiv[index_service+1]->number=-1;//костыль!!!!!!!!
+            str.clear();
+
+            for (int i=0;i<99;i++)
+                if (massiv[i]->number!=-1)
+                    str.append(massiv[i]->toString());
+            QByteArray send=str.toLocal8Bit();
+            mas_service[0]->write(send);
             strlist.clear();
         }
     }
@@ -434,6 +484,13 @@ void MainWindow::on_pushButton_Connect_clicked() //подключаемся
             massiv[0]->add(0,ui->lineEdit_NickName->text(),QTime::currentTime().toString());
             whoami=massiv[0]->toString().toLocal8Bit();
 
+//            for (int i=0;i<99;i++)
+//                if (massiv[i]->number!=-1){
+//                    massiv[i]->add(i,ui->lineEdit_NickName->text(),QTime::currentTime().toString());
+//                    whoami=massiv[i]->toString().toLocal8Bit();
+//                    break;
+//                }
+
             TCPSocket->write(hello);
             TCPSocket_service->write(whoami);
 
@@ -454,7 +511,6 @@ void MainWindow::on_pushButton_Connect_clicked() //подключаемся
             Mes_Box->setText("Подключение выполнено");
             Mes_Box->setWindowTitle("Подключение выполнено");
             Mes_Box->open();
-
         }
         else//если не смогли подключиться в течение 2 сек
         {
@@ -501,7 +557,7 @@ void MainWindow::on_pushButton_SendMes_clicked() //отправить сообщ
 
 void MainWindow::on_pushButton_Disconnect_clicked()//кнопка отключения
 {
-    first_mes=true;
+//    first_mes=true;
     fl_otkl_sam=true;//флаг собственного отключения
     if (ui->radioButton_Client->isChecked())//если мы в режиме клиента отключаемся
     {
@@ -515,6 +571,14 @@ void MainWindow::on_pushButton_Disconnect_clicked()//кнопка отключе
         QByteArray ba;
         ba=(ui->lineEdit_NickName->text()+ " вышел из чата." +"\n").toLocal8Bit();
         TCPSocket->write(ba);
+        QByteArray ba_service;
+        QString str;
+        str=ui->lineEdit_NickName->text()+"\n"+"end\n";
+        ba_service=str.toLocal8Bit();
+        TCPSocket_service->write(ba_service);
+
+//        QByteArray ba_service;
+
 
         ui->textEdit_input->clear();
         ui->pushButton_Clear->hide();
@@ -534,6 +598,8 @@ void MainWindow::on_pushButton_Disconnect_clicked()//кнопка отключе
 
         TCPSocket->disconnectFromHost();//отключаемся от сервера
         TCPSocket_service->disconnectFromHost();
+        TCPSocket=nullptr;
+        TCPSocket_service=nullptr;
 
         close_QMES();//закрываем мэсэдж бокс если открыт и открываем новый
         Mes_Box->setText("Соединение было прервано");
@@ -571,16 +637,22 @@ void MainWindow::on_pushButton_Disconnect_clicked()//кнопка отключе
                 {
                     mas[i]->disconnectFromHost();//отключаемся от клиента
                     mas_bool[i]=false;
+                    mas_service[i]->disconnectFromHost();
+                    mas_bool_service[i]=false;
                 }
                 mas[i]=nullptr;
+                mas_service[i]=nullptr;
             }
         TCPServer->~QTcpServer();//уничтожаем сервер
         TCPServer=nullptr;//чистим указатель
+        TCPServer_service->~QTcpServer();
+        TCPServer_service=nullptr;
         close_QMES();//закрываем мэсэдж бокс если открыт и открываем новый
         Mes_Box->setText("Сервер был удален");
         Mes_Box->setWindowTitle("Информирую");
         Mes_Box->open();
         index=0;
+        index_service=0;
     }
     ui->pushButton_Disconnect->hide();
 }
@@ -603,6 +675,9 @@ void MainWindow::client_disconnected()//функция при отключени
         ui->lineEdit_NickName->setEnabled(true);
         ui->pushButton_SendMes->hide();
         ui->pushButton_Spam->hide();
+        for(int i=0;i<99;i++){
+            massiv[i]->add(-1,"","");
+        }
         if (timer->isActive())//останавливаем спам если он включен
         {
             timer->stop();
@@ -613,16 +688,22 @@ void MainWindow::client_disconnected()//функция при отключени
         Mes_Box->setText("Админ сгорел");
         Mes_Box->setWindowTitle("Внимание");
         Mes_Box->open();
+
     }
     else if (ui->radioButton_Server->isChecked() and !fl_otkl_sam)//если мы в режиме сервера и отключились не сами
     {
         for (int i=0;i<index;i++)
             if (mas[i]!=nullptr)
-                if (mas[i]->state()!=QAbstractSocket::ConnectedState)
+                if (mas[i]->state()!=QAbstractSocket::ConnectedState){
                     mas_bool[i]=false;
+                    mas_bool_service[i]=false;
+                }
         index--;
         int port=ui->lineEdit_Port->text().toInt();
-        TCPServer->listen(QHostAddress::Any,quint16(port));
+        if (!TCPServer->isListening()){
+            TCPServer->listen(QHostAddress::Any,quint16(port));
+            TCPServer_service->listen(QHostAddress::Any,quint16(port+1));
+        }
     }
     fl_otkl_sam=false;//отключились не сами
 }
@@ -685,7 +766,6 @@ void MainWindow::on_pushButton_Spam_clicked()//нажали на кнопкку 
             timer->stop();//останавливаем спам
             counter=0;//обнуляем счетчик
         }
-
 }
 
 void MainWindow::on_pushButton_Clear_clicked()//очистка текстэдитов
@@ -711,13 +791,13 @@ void MainWindow::closeEvent(QCloseEvent * event)//перехватываем з�
     fl_otkl_sam=true;//флаг собственного отключения
     close_QMES();
     if (TCPSocket!=nullptr)
-    if (TCPSocket->state()==QAbstractSocket::ConnectedState)
-    {
-        QByteArray ba;
-        ba=(ui->lineEdit_NickName->text()+ " оффнул с позором.").toLocal8Bit();
-        TCPSocket->write(ba);
-        TCPSocket->disconnectFromHost();
-    }
+        if (TCPSocket->state()==QAbstractSocket::ConnectedState)
+        {
+            QByteArray ba;
+            ba=(ui->lineEdit_NickName->text()+ " оффнул с позором.").toLocal8Bit();
+            TCPSocket->write(ba);
+            TCPSocket->disconnectFromHost();
+        }
     if (timer->isActive())
     {
         timer->stop();
@@ -750,3 +830,4 @@ void MainWindow::on_pushButton_help_debug_clicked()//кнопка для упр�
 //проблема со служебным сокетом почему то вообще не принимает сообщения
 //проблема частично решена
 //TODO: настроить *_service для клиентов, для админа работает
+//на тестах чтото странное происходит подумать как исправить

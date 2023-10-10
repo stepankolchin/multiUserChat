@@ -36,6 +36,11 @@ public:
             QString str=nick+"\n"+time+"\n";
             return str;    
         }
+//        void clear(){
+//            number=-1;
+//            nick="";
+//            time="";
+//        }
 
 
 
