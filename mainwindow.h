@@ -73,6 +73,8 @@ private slots:
 
     void on_pushButton_Member_List_clicked();
 
+    void on_pushButton_help_debug_clicked();
+
 private:
     Ui::MainWindow *ui;
 
@@ -89,9 +91,9 @@ private:
     bool fl_otkl_sam=false,connection_denied=false;//флаг для определения кто разорвал соединение(мы или вторая сторона)
     bool spam_on=true;//флаг спама
     QTimer *timer;//таймер
-    QTcpSocket *mas[99];//массив тцп сокетов для подключений
+    QTcpSocket *mas[99];//массив тцп сокетов для подключений серверу
     bool mas_bool[99];//массив информирующий нас о том какие сокеты заняты
-
+    bool mas_first_mes[99];//массив сообщающий о том первое это сообщение от пользователя(служебное) или нет
 protected:
     void closeEvent(QCloseEvent * event);//перехватываем событие закрытия программы
 };

@@ -20,6 +20,7 @@ MainWindow::MainWindow(QWidget *parent) ://конструктор
     for (int i=0;i<99 ;i++ )
     {
         mas_bool[i]=false;
+        mas_first_mes[i]=true;
     }
     for (int i=0;i<99 ;i++ )
     {
@@ -54,6 +55,7 @@ MainWindow::MainWindow(QWidget *parent) ://конструктор
     ui->lineEdit_Adress->hide();
     ui->lineEdit_Mes->hide();
     ui->lineEdit_Port->hide();
+    ui->pushButton_Member_List->hide();
 //    ui->textEdit_input->hide();
 //    ui->textEdit_output->hide();
     ui->pushButton_Disconnect->setEnabled(false);
@@ -183,6 +185,7 @@ void MainWindow::on_pushButton_Create_clicked() //создали соедине�
         ui->lineEdit_Port->setEnabled(false);
         ui->lineEdit_NickName->setEnabled(false);
         ui->textEdit_input->setVisible(true);
+        ui->pushButton_Member_List->show();
         connect(TCPServer,SIGNAL(newConnection()),this,SLOT(new_connection()));//связываем сигнал нового подключения с соответсвующим слотом
         close_QMES();//закрываем мэсэдж бокс если открыт и открываем новый
         Mes_Box->setText("Чатик создан");
@@ -249,6 +252,11 @@ void MainWindow::new_connection()//к нам подключились
         admin_data=massiv[0]->nick+ "\n" + massiv[0]->time + "\n";
         ba=admin_data.toLocal8Bit();
         mas[index-1]->write(ba);
+//        for (int i=0;i<99;i++)
+//            if (massiv[i]->number!=-1)
+//                admin_data.append(massiv[0]->nick+ "\n" + massiv[0]->time + "\n");
+//        ba=admin_data.toLocal8Bit();
+//        mas[index-1]->write(ba);
         if (index==curr_num_podkl)
             TCPServer->close();
     }
@@ -265,6 +273,13 @@ void MainWindow::new_connection()//к нам подключились
         connect(mas[socket_free],SIGNAL(readyRead()),this,SLOT(read_data()));//связываем сигнал готов читать с соответсвующим слотом
         connect(mas[socket_free],SIGNAL(disconnected()),this,SLOT(client_disconnected()));//связываем сигнал отключения сокета с соответсвующим слотом
         mas_bool[socket_free]=true;
+        QByteArray ba;
+        QString admin_data;
+        for (int i=0;i<99;i++)
+            if (massiv[i]->number!=-1)
+                admin_data.append(massiv[i]->nick+ "\n" + massiv[i]->time + "\n");
+        ba=admin_data.toLocal8Bit();
+        mas[index-1]->write(ba);
         list->makeTable(massiv);
         if (index==curr_num_podkl)
             TCPServer->close();
@@ -328,7 +343,6 @@ void MainWindow::read_data()//пришли данные
     }
     else if (ui->radioButton_Server->isChecked())//мы сервер
     {
-
         if (index>1)//если больше одного юзера
         {
             QByteArray ba;
@@ -345,12 +359,23 @@ void MainWindow::read_data()//пришли данные
             QString str;
             str=str.fromLocal8Bit(ba);//считываем все полученные сообщения
             QStringList strlist=str.split("\n");
-            if (first_mes){//если пришло служебное сообщение для списка участников
+            if (mas_first_mes[from_where_message]){//если пришло служебное сообщение для списка участников
                 massiv[index]->add(index,strlist[0],strlist[1]);
                 massiv[index+1]->number=-1;//костыль!!!!!!
+                QByteArray ba;
+                QString str;
+                str.append(massiv[index]->toString());
+                ba=str.toLocal8Bit();
+                for (int i=0;i<99;i++){
+                    if (mas[i]!=nullptr){
+                        mas[i]->write(ba);
+                    }
+                }
+
 //                member_list->insert(member_list->constEnd(),strlist[0],strlist[1]);//добавляем данные этого пользователя в контейнер
-                first_mes=false;//говорим что от этого юзера служебную инфу мы уже получили - все что будет приходить после это его сообщения
+                mas_first_mes[from_where_message]=false;//говорим что от этого юзера служебную инфу мы уже получили - все что будет приходить после это его сообщения
                 //тут надо сделать массив с флагами для каждого юзера!!!!!!!!!!!!!!!!!
+                //upd вроде done
                 return;
             }
             for (int i=0;i<index ;i++ )//пересылаем полученное сообщение всем другим участникам
@@ -452,9 +477,9 @@ void MainWindow::on_pushButton_Connect_clicked() //подключаемся
         {
             //если  смогли подключиться в течение 2 сек - настройка интерфейса
             QString nickname=ui->lineEdit_NickName->text() + " подключился."+"\n";
-            QTime time_of_connection=QTime::currentTime();
+//            QTime time_of_connection=QTime::currentTime();
             QByteArray podkl_completed;
-            QByteArray connection_time=(time_of_connection.toString()+ " \n").toLocal8Bit();
+//            QByteArray connection_time=(time_of_connection.toString()+ " \n").toLocal8Bit();
 
             podkl_completed=nickname.toLocal8Bit();
 
@@ -469,6 +494,7 @@ void MainWindow::on_pushButton_Connect_clicked() //подключаемся
             ui->pushButton_Disconnect->show();
             ui->pushButton_Connect->setDisabled(true);
             ui->textEdit_input->show();
+            ui->pushButton_Member_List->show();
 //            ui->textEdit_output->show();
             ui->lineEdit_Mes->show();
             ui->pushButton_SendMes->show();
@@ -584,6 +610,7 @@ void MainWindow::on_pushButton_Disconnect_clicked()//кнопка отключе
         ui->radioButton_Server->setEnabled(true);
         ui->pushButton_Disconnect->setEnabled(false);
         ui->lineEdit_NickName->setEnabled(true);
+        ui->pushButton_Member_List->hide();
 
 
         TCPSocket->disconnectFromHost();//отключаемся от сервера
@@ -611,6 +638,7 @@ void MainWindow::on_pushButton_Disconnect_clicked()//кнопка отключе
         ui->radioButton_Client->setEnabled(true);
         ui->radioButton_Server->setEnabled(true);
         ui->pushButton_Disconnect->setEnabled(false);
+        ui->pushButton_Member_List->hide();
 //        ui->textEdit_output->hide();
         ui->lineEdit_Mes->hide();
         ui->pushButton_SendMes->hide();
@@ -896,5 +924,13 @@ void MainWindow::on_pushButton_Member_List_clicked()
     list->open();
 
 }
-//нужно сделать то что с воскл знаками для того чтобы заработало нормально отображение 3его пользователя
+//нужно сделать то что с воскл знаками для того чтобы заработало нормально отображение 3его пользователя DONE
 //также нужно сделать пересылку всего списка для каждого нового юзера
+//обеспечить очистку списка во всех возможных случаях: когда пользователь отключился, когда сервер отключился, когда мы сами отключились
+void MainWindow::on_pushButton_help_debug_clicked()//кнопка для упрощения тестирования
+{
+    ui->lineEdit_Port->setText(QString::number(123));
+    ui->lineEdit_Adress->setText("127.0.0.1");
+    ui->lineEdit_NickName->setText("1");
+}
+

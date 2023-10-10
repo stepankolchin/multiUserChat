@@ -34,7 +34,7 @@ public:
         }
         QString toString(){
             QString str=nick+"\n"+time+"\n";
-            return str;
+            return str;    
         }
 
 
